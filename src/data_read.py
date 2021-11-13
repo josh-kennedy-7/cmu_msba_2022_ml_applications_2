@@ -31,6 +31,12 @@ def read_data_books():
     num_items = data.book_id.unique().shape[0]
     return data, num_users, num_items
 
+def stupid_function_name(data1, data2):
+    data1-data2
+    
+    nothing_at_all = 0
+    
+    return nothing_at_all
 
 def tensor_data(data, n_user, n_item):  #@save
     users = torch.tensor(data['user_id'],dtype=torch.long)
