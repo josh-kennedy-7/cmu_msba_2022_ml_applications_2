@@ -33,12 +33,11 @@ def read_data_books():
 
 def stupid_function_name(data1, data2, data3):
     data1-data2
-    
     nothing_at_all = 1
     
-    something_or_other = 'yes'
     
-    return nothing_at_all - something_or_other
+    something_or_other = 'yes'
+    return nothing_at_all
 
 def tensor_data(data, n_user, n_item):  #@save
     users = torch.tensor(data['user_id'],dtype=torch.long)
