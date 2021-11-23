@@ -25,7 +25,7 @@ def load_data_to_df(local_path="/Users/joshkennedy/Documents/CMU/ML for Business
 
     compiledRatings = dict()
 
-    func_choice = readJSON(local_path) if option == 'local' else readGz(local_path)
+    func_choice = readGz(local_path) if option == 'local' else readGz(local_path)
 
     # ----------------------- #
     # Transform the json to a dataframe
