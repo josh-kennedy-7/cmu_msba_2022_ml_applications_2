@@ -75,11 +75,11 @@ def load_data_to_df(local_path="/Users/joshkennedy/Documents/CMU/ML for Business
     # If we wanted to create category specific columns:
     # ----------------------- #
     df_train['parentCategory'] = df_train['categories'].apply(lambda x: x[0][0])
-    # df_train['cat1'] = df_train['categories'].apply(lambda x: x[0][1])
-    # df_train['cat2'] = df_train['categories'].apply(lambda x: x[0][2] if len(x[0]) > 2 else '')
-    # df_train['cat3'] = df_train['categories'].apply(lambda x: x[0][3] if len(x[0]) > 3 else '')
-    # df_train['cat1_child'] = df_train['categories'].apply(lambda x: x[0][-1])
-    # df_train['cat2_parent'] = df_train['categories'].apply(lambda x: x[1][0] if len(x) > 1 else '')
-    # df_train['cat2_child'] = df_train['categories'].apply(lambda x: x[1][-1] if len(x) > 1 else '')
+    df_train['cat1'] = df_train['categories'].apply(lambda x: x[0][1])
+    df_train['cat2'] = df_train['categories'].apply(lambda x: x[0][2] if len(x[0]) > 2 else '')
+    df_train['cat3'] = df_train['categories'].apply(lambda x: x[0][3] if len(x[0]) > 3 else '')
+    df_train['cat1_child'] = df_train['categories'].apply(lambda x: x[0][-1])
+    df_train['cat2_parent'] = df_train['categories'].apply(lambda x: x[1][0] if len(x) > 1 else '')
+    df_train['cat2_child'] = df_train['categories'].apply(lambda x: x[1][-1] if len(x) > 1 else '')
 
     return df_train
