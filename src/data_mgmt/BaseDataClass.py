@@ -156,18 +156,7 @@ class BaseDataClass(Dataset):
         Returns:
             Pandas Dataframe: dataframe with the data to be machine-learned
         """
-        try:  # if using colab
-            # TODO -- REED -- GColab support not tested yet ;(
-            # Mounting google drive
-            from google.colab import drive
-            drive.mount("/content/gdrive")
-
-            local_path = pathname+filename+extensions
-            option = 'gdrive'
-        except:
-            local_path = pathname+filename+extensions
-            option = 'local'
-
+        local_path = pathname+filename+extensions
         compiledRatings = dict()
 
         if extensions == '.json.gz':
