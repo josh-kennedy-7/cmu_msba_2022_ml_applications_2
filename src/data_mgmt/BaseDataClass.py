@@ -41,14 +41,17 @@ class BaseDataClass(Dataset):
         if save_results:
             df_read_out.to_csv(root_dir+data_file_name+".csv")
             
-        self.df_train = df_read_out
+        # set class variables
+        self.df_data = df_read_out
+        self.transform = transform
+        self.target_transform = target_transform
 
     def __len__(self):
         """The __len__ function returns the number of samples in our dataset.
 
         Simple enough right?
         """
-        return len(self.df_data_in)
+        return len(self.df_data)
 
     def __getitem__(self, idx):
         """The __getitem__ function loads and returns a sample from the dataset at the given index idx.
@@ -71,8 +74,11 @@ class BaseDataClass(Dataset):
 
         Args:
             idx -- the index you want the thingy of
+            
+        Returns:
+            tuple -- index 0 is features, index 1 is targets/labels/whateva
         """
-        reqested_row = self.df_data_in.iloc[idx].copy()
+        reqested_row = self.df_data.iloc[idx].copy()
         
         if self.transform:
             features = self.transform(reqested_row)
