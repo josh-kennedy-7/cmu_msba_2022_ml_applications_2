@@ -1,4 +1,4 @@
-from BaseDataClass
+from . import BaseDataClass
 import pandas as pd
 import torch
 
@@ -18,20 +18,25 @@ class CatPredData(BaseDataClass.BaseDataClass):
         BaseDataClass (Python Class): This is the Base Class...
     """
 
-    def __init__(self, root_dir, transform=None, target_transform=None):
-        super().__init__(root_dir)
-
-        self.catPredPreprocessing()
-
+    def __init__(self, root_dir, preprocess=None, transform=None, target_transform=None):
+        super().__init__(root_dir)        
+        
+        if preprocess:
+            self.preprocess = preprocess
+        else:
+            self.preprocess = self.catPredPreprocessing
+        
+        self.df_data = self.preprocess(self.df_data)
+        
         if transform:
             self.transform = transform
         else:
-            self.transform = self.catPredXfrm()
-
+            self.transform = self.catPredXfrm
+            
         if target_transform:
             self.target_transform = target_transform
         else:
-            self.target_transform = self.catPredTgtXfrm()
+            self.target_transform = self.catPredTgtXfrm
 
     def catPredPreprocessing(self):
         pass
