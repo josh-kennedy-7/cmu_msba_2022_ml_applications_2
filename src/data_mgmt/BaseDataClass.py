@@ -2,6 +2,7 @@ from torch.utils.data.dataset import Dataset
 import pandas as pd
 import gzip
 import os
+from tqdm import tqdm
 
 
 class BaseDataClass(Dataset):
@@ -11,49 +12,36 @@ class BaseDataClass(Dataset):
         csv_file (location): path to the data
     """
 
-    def __init__(self, root_dir, train_or_test="train", transform=None, target_transform=None):
+    def __init__(self, root_dir, data_file_name="train", transform=None, target_transform=None):
         """The __init__ function is run once when instantiating the Dataset object.
 
         We initialize the directory containing the images, 
         the annotations file, and both transforms.
         """
 
-        # TODO -- REED -- super ideal behavior would be to
-        # A) look in the dir, if there's
-        #   1) saved dataframes or csv load those
-        #   2) jsons then load those, and save dataframes
-        #   3) json.gz then unpack and move up to 2
-        if train_or_test == "train":
-            data_file_name = "train"
-        else:
-            data_file_name = "test_Category"
+        if data_file_name != "train":
+            raise Exception("This object only works on training data right now, blame Reed.")
 
-        # TODO -- REED -- write this function
         category_results = BaseDataClass._assessDirectory(
             root_dir, data_file_name)
-        # category_results = "json_gz_only"
-
         save_results = True
 
         if category_results == "json_gz_only":
-            self.df_data_in = BaseDataClass._loadUpDf(
+            df_read_out = BaseDataClass._loadUpDf(
                 root_dir, data_file_name, ".json.gz")
         elif category_results == "json_only":
-            self.df_data_in = BaseDataClass._loadUpDf(
+            df_read_out = BaseDataClass._loadUpDf(
                 root_dir, data_file_name, ".json")
         elif category_results == "saved_files":
-            self.df_data_in = pd.read_csv(root_dir+data_file_name+".csv")
+            df_read_out = pd.read_csv(root_dir+data_file_name+".csv")
             save_results = False
         else:
-            print("ERROR: BaseDataClass did not know where to find category results!")
+            raise Exception("BaseDataClass did not know where to find category results!")
 
         if save_results:
-            self.df_data_in.to_csv(root_dir+data_file_name+".csv")
-
-        self.transform = transform
-        self.target_transform = target_transform
-
-    # TODO -- ARA -- rewite for our class
+            df_read_out.to_csv(root_dir+data_file_name+".csv")
+            
+        self.df_train = df_read_out
 
     def __len__(self):
         """The __len__ function returns the number of samples in our dataset.
@@ -62,26 +50,54 @@ class BaseDataClass(Dataset):
         """
         return len(self.df_data_in)
 
-    # TODO -- ARA -- rewite for our class
-
     def __getitem__(self, idx):
         """The __getitem__ function loads and returns a sample from the dataset at the given index idx.
 
-        Based on the index, it identifies the image’s location on disk, 
-        converts that to a tensor using read_image, retrieves the 
-        corresponding label from the csv data in self.img_labels, calls 
-        the transform functions on them (if applicable), and returns 
-        the tensor image and corresponding label in a tuple.
-
-        OUTPUT WILL BE IN FEATURES, LABEL FORMAT
+        Note that if you're reading this you are in the Base Class of our
+        dataset class which means the return of __getitem__() will not be
+        a (feature,label) pair, it's just going to be the row.
+        
+        If you want to feed this into a dataloader to start working with it
+        then you're going to need to have:
+            -> A transform() function
+            -> A transform_target() function
+            
+        ...which hopefully by the time you're reading this Reed will have
+        authored for most of the challenges...
+        
+        And instead of using this base class you're going to want to use
+        the overloaded class specific to the challenge you're trying
+        to address!!!
 
         Args:
             idx -- the index you want the thingy of
         """
-        return self.df_data_in.iloc[idx]
+        reqested_row = self.df_data_in.iloc[idx].copy()
+        
+        if self.transform:
+            features = self.transform(reqested_row)
+        else:
+            features = reqested_row
+            
+        if self.target_transform:
+            label = self.target_transform(reqested_row)      
+        else:
+            label = None
+        
+        return (features, label)
+    
 
     @staticmethod
     def _assessDirectory(root_dir, f_name):
+        """looks at the data directory to determine the type and format of data accessible by the dataset object. This will save time because if you've run it once you'll have a .csv and you won't need to reformat the data from the .json or .json.gz format!!
+
+        Args:
+            root_dir (str): file path to the data directory
+            f_name (str): name of the file to search for
+
+        Returns:
+            str: string describing the available data to access
+        """
         result = None
         
         found_json      =   False
@@ -103,6 +119,9 @@ class BaseDataClass(Dataset):
         elif found_json_gz:
             result = "json_gz_only"
             
+        if not result:
+            raise Exception("No recognizable file type found within data directory.")
+            
         return result
             
 
@@ -118,7 +137,21 @@ class BaseDataClass(Dataset):
 
     @staticmethod
     def _loadUpDf(pathname, filename, extensions):
+        """Governs the transfer logic from stored data (.json.gz, .json, or .csv) over to the dataframe for use within the dataset object.
+
+        At some point this will have contingency planning to load up the test data sets
+        but for now it only works on the train.json.gz suite of sets.
+
+        Args:
+            pathname (str): path where the data files reside
+            filename (str): name of the file to load from
+            extensions (str): must be ".json.gz", ".json", or ".csv" (auto set)
+
+        Returns:
+            Pandas Dataframe: dataframe with the data to be machine-learned
+        """
         try:  # if using colab
+            # TODO -- REED -- GColab support not tested yet ;(
             # Mounting google drive
             from google.colab import drive
             drive.mount("/content/gdrive")
@@ -139,7 +172,7 @@ class BaseDataClass(Dataset):
         # ----------------------- #
         # Transform the json to a dataframe
         # ----------------------- #
-        for l in func_choice:
+        for l in tqdm(func_choice,desc="Loading JSON into Dataframe"):
             row = l['reviewHash']
             userRating = dict()
 
@@ -188,24 +221,15 @@ class BaseDataClass(Dataset):
         df['parentCategory'] = df['categories'].apply(
             lambda x: x[0][0])
         
-        df.df_data_in.\
-            reset_index(inplace=True).\
-            rename(columns={'index':'reviewHash'})
+        df = df.reset_index()
+        df = df.rename(columns={'index':'reviewHash'})
 
         return df
 
 
 def main(ppath="C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"):
-    transformed_dataset = BaseDataClass(ppath, train_or_test="train")
-
-    # dataloader = DataLoader(transformed_dataset, batch_size=4,
-    #                         shuffle=True, num_workers=0)
-
-    # for i_batch, sample_batched in enumerate(dataloader):
-    #     if i_batch == 3:
-    #         print(sample_batched[0])
-    #         print(sample_batched[1])
-    #         break
+    transformed_dataset = BaseDataClass(ppath)
+    print(transformed_dataset.df_train.head())
 
 # TODO -- REED -- redo this code for testing purposes
 if __name__ == "__main__":
