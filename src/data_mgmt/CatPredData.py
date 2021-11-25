@@ -1,4 +1,4 @@
-from .BaseDataClass import BaseDataClass
+from BaseDataClass
 import pandas as pd
 import torch
 
@@ -6,7 +6,7 @@ import torch
 # TODO -- REED -- ! ! ! ! ! HEY WE HAVEN'T EVEN STARTED THIS ONE YET! ! ! ! ! !
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 
-class CatPredData(BaseDataClass):
+class CatPredData(BaseDataClass.BaseDataClass):
     """PyTorch DataClass designed to tackle challenge #1 (Purchase Prediction)
 
     "Predict given a (user,item) pair from ‘pairs Purchase.txt’ whether the user purchased

@@ -15,8 +15,6 @@ class BaseDataClass(Dataset):
     def __init__(self, root_dir, data_file_name="train", transform=None, target_transform=None):
         """The __init__ function is run once when instantiating the Dataset object.
 
-        We initialize the directory containing the images, 
-        the annotations file, and both transforms.
         """
 
         if data_file_name != "train":
@@ -220,14 +218,3 @@ class BaseDataClass(Dataset):
         df = df.rename(columns={'index':'reviewHash'})
 
         return df
-
-
-def main(ppath="C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"):
-    transformed_dataset = BaseDataClass(ppath)
-    print(transformed_dataset.df_train.head())
-
-# TODO -- REED -- redo this code for testing purposes
-if __name__ == "__main__":
-    main()
-
-
