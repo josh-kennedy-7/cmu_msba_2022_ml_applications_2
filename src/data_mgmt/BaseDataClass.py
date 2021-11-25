@@ -1,9 +1,7 @@
 from torch.utils.data.dataset import Dataset
-from torch.utils.data.dataloader import DataLoader
-
 import pandas as pd
-import torch
 import gzip
+import os
 
 
 class BaseDataClass(Dataset):
@@ -31,8 +29,11 @@ class BaseDataClass(Dataset):
             data_file_name = "test_Category"
 
         # TODO -- REED -- write this function
-        # category_results = BaseDataClass._assessDirectory(root_dir)
-        category_results = "json_gz_only"
+        category_results = BaseDataClass._assessDirectory(
+            root_dir, data_file_name)
+        # category_results = "json_gz_only"
+
+        save_results = True
 
         if category_results == "json_gz_only":
             self.df_data_in = BaseDataClass._loadUpDf(
@@ -41,12 +42,13 @@ class BaseDataClass(Dataset):
             self.df_data_in = BaseDataClass._loadUpDf(
                 root_dir, data_file_name, ".json")
         elif category_results == "saved_files":
-            pass
-            # TODO -- REED -- replace this with a thing that just reads the saved dataframe
+            self.df_data_in = pd.read_csv(root_dir+data_file_name+".csv")
+            save_results = False
         else:
             print("ERROR: BaseDataClass did not know where to find category results!")
 
-        self.df_data_in.to_csv(root_dir+data_file_name+".csv")
+        if save_results:
+            self.df_data_in.to_csv(root_dir+data_file_name+".csv")
 
         self.transform = transform
         self.target_transform = target_transform
@@ -58,7 +60,7 @@ class BaseDataClass(Dataset):
 
         Simple enough right?
         """
-        return len(self.img_labels)
+        return len(self.df_data_in)
 
     # TODO -- ARA -- rewite for our class
 
@@ -76,14 +78,33 @@ class BaseDataClass(Dataset):
         Args:
             idx -- the index you want the thingy of
         """
-        img_path = os.path.join(self.img_dir, self.img_labels.iloc[idx, 0])
-        image = read_image(img_path)
-        label = self.img_labels.iloc[idx, 1]
-        if self.transform:
-            image = self.transform(image)
-        if self.target_transform:
-            label = self.target_transform(label)
-        return image, label
+        return self.df_data_in.iloc[idx]
+
+    @staticmethod
+    def _assessDirectory(root_dir, f_name):
+        result = None
+        
+        found_json      =   False
+        found_json_gz   =   False
+        with os.scandir(root_dir) as diriter:
+            for this_file in diriter:
+                if f_name + ".csv" == this_file.name:
+                    result = "saved_files"
+                    break
+                elif f_name + ".json" == this_file.name:
+                    found_json = True
+                    continue                
+                elif f_name + ".json.gz" == this_file.name:
+                    found_json_gz = True
+                    continue
+                
+        if found_json:
+            result = "json_only"
+        elif found_json_gz:
+            result = "json_gz_only"
+            
+        return result
+            
 
     @staticmethod
     def _readGz(f):
@@ -166,14 +187,16 @@ class BaseDataClass(Dataset):
         # ----------------------- #
         df['parentCategory'] = df['categories'].apply(
             lambda x: x[0][0])
+        
+        df.df_data_in.\
+            reset_index(inplace=True).\
+            rename(columns={'index':'reviewHash'})
 
         return df
 
 
-# TODO -- REED -- redo this code for testing purposes
-if __name__ == "__main__":
-    ppath = "C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"
-    transformed_dataset = BaseDataClass(ppath)
+def main(ppath="C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"):
+    transformed_dataset = BaseDataClass(ppath, train_or_test="train")
 
     # dataloader = DataLoader(transformed_dataset, batch_size=4,
     #                         shuffle=True, num_workers=0)
@@ -183,3 +206,9 @@ if __name__ == "__main__":
     #         print(sample_batched[0])
     #         print(sample_batched[1])
     #         break
+
+# TODO -- REED -- redo this code for testing purposes
+if __name__ == "__main__":
+    main()
+
+
