@@ -25,10 +25,12 @@ def main():
     ppath="C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"    
     cpd = CatPredData(ppath)
     
+    cpd.df_data=cpd.df_data[cpd.df_data.reviewHash!="R0"]
+    
     print(cpd.df_data.head())
     
     tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
-    tokenized = tokenizer(cpd.df_data.reviewText.iloc[1:10000].tolist(), \
+    tokenized = tokenizer(cpd.df_data.reviewText.tolist(), \
         padding=True, truncation=True, return_tensors="pt")    
     print(tokenized['input_ids'].shape)
     print('\n\n')
