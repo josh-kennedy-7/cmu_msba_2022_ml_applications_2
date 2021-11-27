@@ -38,11 +38,14 @@ class CatPredData(BaseDataClass.BaseDataClass):
         else:
             self.target_transform = self.catPredTgtXfrm
 
-    def catPredPreprocessing(self):
-        pass
+    @staticmethod
+    def catPredPreprocessing(df_in):
+        return df_in
 
-    def catPredXfrm(self):
+    @staticmethod
+    def catPredXfrm():
         return None
 
-    def catPredTgtXfrm(self):
+    @staticmethod
+    def catPredTgtXfrm():
         return None
