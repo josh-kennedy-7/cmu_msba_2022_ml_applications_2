@@ -1,8 +1,5 @@
 from data_mgmt.CatPredData import CatPredData
 from transformers import BertTokenizerFast
-
-from torch.utils.data import DataLoader
-import torch
 import pandas as pd
 
 """
@@ -18,22 +15,20 @@ https://huggingface.co/transformers/model_doc/bert.html
 
 
 def bertPreProcess(df_in):
-    tokenizer = AutoTokenizer.from_pretrained('bert-base-cased')
+    # eliminate blank row
+    df_in=df_in[df_in.reviewHash!="R0"]
+    df_in=df_in.iloc[0:10000]
+    
+    tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
+    tokenized = tokenizer(df_in.reviewText.tolist(), \
+        padding=True, truncation=True, return_tensors="pt")
+    
+    return (df_in, tokenized['input_ids'])
 
 
 def main():
     ppath="C:\\git\\cmu_msba_2022_ml_applications_2\\data\\"    
-    cpd = CatPredData(ppath)
-    
-    cpd.df_data=cpd.df_data[cpd.df_data.reviewHash!="R0"]
-    
-    print(cpd.df_data.head())
-    
-    tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
-    tokenized = tokenizer(cpd.df_data.reviewText.tolist(), \
-        padding=True, truncation=True, return_tensors="pt")    
-    print(tokenized['input_ids'].shape)
-    print('\n\n')
+    cpd = CatPredData(ppath)    
     
 if __name__ == "__main__":
     main()
