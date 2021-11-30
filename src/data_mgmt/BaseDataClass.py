@@ -213,6 +213,18 @@ class BaseDataClass(Dataset):
         # ----------------------- #
         df['parentCategory'] = df['categories'].apply(
             lambda x: x[0][0])
+        df['cat1'] = df['categories'].apply(
+            lambda x: x[0][1])
+        df['cat2'] = df['categories'].apply(
+            lambda x: x[0][2] if len(x[0]) > 2 else '')
+        df['cat3'] = df['categories'].apply(
+            lambda x: x[0][3] if len(x[0]) > 3 else '')
+        df['cat1_child'] = df['categories'].apply(
+            lambda x: x[0][-1])
+        df['cat2_parent'] = df['categories'].apply(
+            lambda x: x[1][0] if len(x) > 1 else '')
+        df['cat2_child'] = df['categories'].apply(
+            lambda x: x[1][-1] if len(x) > 1 else '')
         
         df = df.reset_index()
         df = df.rename(columns={'index':'reviewHash'})
