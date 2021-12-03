@@ -113,21 +113,22 @@ class BaseDataClass(Dataset):
                     break
                 elif f_name + ".json" == this_file.name:
                     found_json = True
-                    continue                
+                    continue
                 elif f_name + ".json.gz" == this_file.name:
                     found_json_gz = True
                     continue
-                
-        if found_json:
-            result = "json_only"
-        elif found_json_gz:
-            result = "json_gz_only"
-            
+
+        if not result == "saved_files":
+            if found_json:
+                result = "json_only"
+            elif found_json_gz:
+                result = "json_gz_only"
+
         if not result:
             raise Exception("No recognizable file type found within data directory.")
-            
+
         return result
-            
+
 
     @staticmethod
     def _readGz(f):
