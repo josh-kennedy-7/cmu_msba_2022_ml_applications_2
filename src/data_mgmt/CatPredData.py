@@ -1,4 +1,5 @@
 from . import BaseDataClass
+from transformers import BertTokenizerFast
 import pandas as pd
 import torch
 
@@ -20,20 +21,20 @@ class CatPredData(BaseDataClass.BaseDataClass):
 
     def __init__(self, root_dir, preprocess=None, transform=None,
                  target_transform=None):
-        super().__init__(root_dir)        
-        
+        super().__init__(root_dir)
+
         if preprocess:
             self.preprocess = preprocess
         else:
             self.preprocess = self.catPredPreprocessing
-        
+
         self.df_data, self.tf_tokenids = self.preprocess(self.df_data)
-        
+
         if transform:
             self.transform = transform
         else:
             self.transform = self.catPredXfrm
-            
+
         if target_transform:
             self.target_transform = target_transform
         else:
@@ -41,19 +42,19 @@ class CatPredData(BaseDataClass.BaseDataClass):
 
     @staticmethod
     def catPredPreprocessing(df_in):
-        # eliminate blank row
-        # TODO -- REED -- this should probably be in the base class
-        df_in=df_in[df_in.reviewHash!="R0"]
-        
         # TODO -- REED -- enable full data set
         # for now only look at 20,000 examples to prevent
         # computer melting issues.
         df_in=df_in.iloc[0:20000]
-        
+
+        # eliminate blank row
+        # TODO -- REED -- this should probably be in the base class
+        df_in=df_in.query("reviewHash!='R0'")
+
         tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
         tokenized = tokenizer(df_in.reviewText.tolist(), \
             padding=True, truncation=True, return_tensors="pt")
-    
+
         return (df_in, tokenized['input_ids'])
 
     @staticmethod
