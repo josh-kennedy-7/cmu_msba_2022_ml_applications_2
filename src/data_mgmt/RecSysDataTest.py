@@ -55,6 +55,11 @@ class TestRecSysData(ValidationBaseDataClass.ValidationDataClass):
 
     @staticmethod
     def _beatTheCrapOutOfThisData(dfin, dfout):
+        """
+        will return a dataframe that has correlated the reviewer and item
+        ID's within the test data set versus ones we recognize from the
+        training data set.
+        """
         dfout.columns = ['reviewerID','itemID']
 
         uid_pairs = dfin.set_index('reviewerID').loc[
