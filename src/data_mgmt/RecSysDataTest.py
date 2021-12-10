@@ -74,6 +74,7 @@ class TestRecSysData(ValidationBaseDataClass.ValidationDataClass):
 
         dfout=dfout.join(uid_pairs,how='left',on='reviewerID')
         dfout=dfout.join(pid_pairs,how='left',on='itemID')
-        dfout=dfout.interpolate(method='pad') # kind of a hack for now
+        dfout.uid=dfout.uid.fillna(method='backfill') # kind of a hack for now
+        dfout.pid=dfout.pid.fillna(method='backfill')
 
         return dfout
