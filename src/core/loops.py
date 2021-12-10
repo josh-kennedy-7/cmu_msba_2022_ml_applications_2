@@ -13,7 +13,10 @@ def train_loop(dataloader, model, loss_fn, optimizer, device):
             y = y.cuda()
 
             # Compute prediction and loss
-            pred = model(X.type(torch.long)).flatten()
+            if device == 'encoder':
+                pred = model(X.type(torch.long)).flatten()
+            elif device == 'linmod':
+                pred = model(X).flatten()
             loss = loss_fn(pred, y)
 
             if loss.item() > max_loss:
@@ -44,11 +47,15 @@ def test_loop(dataloader, model, loss_fn, device):
             X = X.cuda()
             y = y.cuda()
 
-            pred = model(X.type(torch.long)).flatten()
+            if device == 'encoder':
+                pred = model(X.type(torch.long)).flatten()
+            elif device == 'linmod':
+                pred = model(X).flatten()
+
             loss += loss_fn(pred, y).item()
-            # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
+
 
     torch.cuda.empty_cache()
     loss /= num_batches
     print(f"Test Error: \n Avg loss: {loss.cpu().numpy()[0]:.3e} \n")
-    return loss
+    return loss.cpu().numpy()
