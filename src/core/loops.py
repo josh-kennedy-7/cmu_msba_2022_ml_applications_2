@@ -31,7 +31,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, device):
             t.update()
 
         torch.cuda.empty_cache()
-        print(f"\nEpoch Done, max loss:{max_loss:.3f}, min loss: {min_loss:.3f}, final loss: {loss.item():.3f}")
+        print(f"\nEpoch Done, max loss:{max_loss:.3e}, min loss: {min_loss:.3e}, final loss: {loss.item():.3e}")
 
 
 def test_loop(dataloader, model, loss_fn, device):
@@ -50,5 +50,5 @@ def test_loop(dataloader, model, loss_fn, device):
 
     torch.cuda.empty_cache()
     loss /= num_batches
-    print(f"Test Error: \n Avg loss: {loss} \n")
+    print(f"Test Error: \n Avg loss: {loss.cpu().numpy()[0]:.3e} \n")
     return loss

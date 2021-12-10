@@ -1,3 +1,4 @@
+from torch.optim import optimizer
 import data_mgmt.RecSysData as rsd
 from models.RecSysFlat import RecSysGarbageNetV2
 from torch.utils.data import DataLoader
@@ -7,6 +8,8 @@ import pandas as pd
 from tqdm import tqdm
 from core.loops import train_loop, test_loop
 from copy import deepcopy
+
+from torch.optim.swa_utils import AveragedModel, SWALR
 
 """ A Note From Reed:
 
@@ -43,37 +46,50 @@ def main():
 
     ppath=r"C:\git\cmu_msba_2022_ml_applications_2\data"+"\\"
     ppath="//home/rster/sw/cmu_msba_2022_ml_applications_2/data/"
-    MODEL_SAVE_PATH="//home/rster/sw/cmu_msba_2022_ml_applications_2/src/models/saved/jimlad.pkl"
+    MODEL_SAVE_PATH="//home/rster/sw/cmu_msba_2022_ml_applications_2/src/models/saved/"
 
     omfg = rsd.RecSysData(ppath)
-    #wtfbbq = omfg.splitValidation(preshuffle=True)
-    tdl = DataLoader(omfg, batch_size=50000, shuffle=True)
-    #vdl = DataLoader(wtfbbq, batch_size=200000, shuffle=True)
+    wtfbbq = omfg.splitValidation(preshuffle=True, fraction=0.05)
+    tdl = DataLoader(omfg, batch_size=50000, shuffle=False)
+    vdl = DataLoader(wtfbbq, batch_size=50000, shuffle=False)
 
-    n_user = omfg.df_data.uid.unique().shape[0] #+ wtfbbq.df_data.uid.unique().shape[0]
-    n_item = omfg.df_data.pid.unique().shape[0] #+ wtfbbq.df_data.pid.unique().shape[0]
+    n_user = omfg.df_data.uid.unique().shape[0] + wtfbbq.df_data.uid.unique().shape[0]
+    n_item = omfg.df_data.pid.unique().shape[0] + wtfbbq.df_data.pid.unique().shape[0]
 
     learning_rate = 1.0
-    model = RecSysGarbageNetV2(n_user,n_item,300)
+    model = RecSysGarbageNetV2(n_user,n_item,50)
+    swa_model = AveragedModel(model)
+
     model = model.cuda()
+    swa_model = swa_model.cuda()
 
-    loss = torch.nn.L1Loss(reduction='sum')
-    # optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
-    optimizer = torch.optim.Adadelta(model.parameters(), lr=10.0, rho=0.9, eps=1e-06, weight_decay=0)
-    scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.99, verbose=True)
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', factor=0.5,
-    #     patience=3, threshold=0.0001, threshold_mode='rel',
-    #     cooldown=0, min_lr=0, eps=1e-08, verbose=True)
+    loss = torch.nn.MSELoss(reduction='sum')
+    #optimizer = torch.optim.Adadelta(model.parameters(), lr=15.0, rho=0.9, eps=1e-06, weight_decay=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+                    mode='min', factor=0.8,
+                    patience=10, threshold=0.0001, threshold_mode='rel',
+                    cooldown=3, min_lr=0, eps=1e-08, verbose=True)
+    swa_scheduler = SWALR(optimizer, anneal_epochs=50, swa_lr=0.008)
 
+    swa_start = 750
     epochs = 1000
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(tdl, model, loss, optimizer, device)
-        torch.save(deepcopy(model.state_dict()), MODEL_SAVE_PATH)
-        # val_loss=test_loop(vdl, model, loss, device)
 
-        #scheduler.step(val_loss.to('cpu'))
-        scheduler.step()
+
+        if t > swa_start:
+            val_loss=test_loop(vdl, swa_model, loss, device)
+            swa_model.update_parameters(model)
+            swa_scheduler.step()
+        else:
+            val_loss=test_loop(vdl, model, loss, device)
+            scheduler.step(val_loss.to('cpu'))
+
+        torch.save(deepcopy(model.state_dict()), MODEL_SAVE_PATH+"jimlad.pkl")
+        torch.save(deepcopy(swa_model.state_dict()), MODEL_SAVE_PATH+"jimswa.pkl")
+
     print("Done!")
 
 if __name__ == "__main__":
