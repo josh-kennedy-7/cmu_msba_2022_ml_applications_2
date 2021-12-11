@@ -1,13 +1,16 @@
-import data_mgmt.RecSysData as rsd
-from models.RecSysFlat import RecSysGarbageNetV2
-from torch.utils.data import DataLoader
 import torch
-from core.loops import train_loop, test_loop
-from copy import deepcopy
-import os
+from torch.utils.data import DataLoader
+from torch.utils.tensorboard import SummaryWriter
 
-from torch.optim.swa_utils import AveragedModel, SWALR
+import os
+import numpy as np
+import pandas as pd
+from copy import deepcopy
+
+from data_mgmt import RecSysData as rsd
+from core.loops import train_loop, test_loop
 from data_mgmt import ValidationBaseDataClass
+from models.FactorioMachine import FactorizationMachineModel
 
 """ A Note From Reed:
 
@@ -51,53 +54,55 @@ def splitValidationByUser(ds_in):
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    #device = torch.device("cpu")
     torch.cuda.empty_cache()
+
+    MODEL_NAME = "fm_testing"
 
     PATH_DATA  = os.path.abspath('data/')
     PATH_SAVE  = os.path.abspath('src/models/saved/')
-    MODEL_NAME = "garbagio2" + ".pkl"
+    PATH_TBRD  = os.path.join(PATH_SAVE,MODEL_NAME)
+    PATH_MWRT  = os.path.join(PATH_SAVE,MODEL_NAME+".pkl")
+
+    if os.path.exists(PATH_TBRD):
+        os.remove(PATH_TBRD)
+    tb = SummaryWriter(os.path.join(PATH_SAVE,MODEL_NAME))
+    MODEL_NAME += ".pkl"
 
     ds_train = rsd.RecSysData(PATH_DATA)
+    #ds_train.df_data = ds_train.df_data.iloc[0:10000]
     ds_valid = splitValidationByUser(ds_train)
 
-    tdl = DataLoader(ds_train, batch_size=50000, shuffle=False)
-    vdl = DataLoader(ds_valid, batch_size=50000, shuffle=False)
+    tdl = DataLoader(ds_train, batch_size=128, shuffle=False)
+    vdl = DataLoader(ds_valid, batch_size=128, shuffle=False)
 
     n_user = ds_train.df_data.uid.append(ds_valid.df_data.uid).unique().shape[0]
     n_item = ds_train.df_data.pid.append(ds_valid.df_data.pid).unique().shape[0]
+    model_dims = np.array([n_user,n_item])
 
-    model = RecSysGarbageNetV2(n_user,n_item,16)
-    swa_model = AveragedModel(model)
+    model = FactorizationMachineModel(model_dims,64)
+    tb.add_graph(model, next(iter(tdl))[0])
 
     model = model.to(device=device)
-    swa_model = swa_model.to(device=device)
+
+    learning_rate = 0.05
 
     loss = torch.nn.MSELoss(reduction='sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-1)
+    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-4)
     #optimizer = torch.optim.Adadelta(model.parameters(), lr=15.0, rho=0.9, eps=1e-06, weight_decay=1e-3)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                     mode='min', factor=0.666,
                     patience=5, threshold=0.02, threshold_mode='rel',
                     cooldown=5, min_lr=1e-6, eps=1e-08, verbose=True)
-    swa_scheduler = SWALR(optimizer, anneal_epochs=50, swa_lr=0.008)
 
-    swa_start = 750
     epochs = 1000
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train_loop(tdl, model, loss, optimizer, method='encoder', in_device=device)
-
-
-        if t > swa_start:
-            val_loss=test_loop(vdl, swa_model, loss, method='encoder', in_device=device)
-            swa_model.update_parameters(model)
-            swa_scheduler.step()
-        else:
-            val_loss=test_loop(vdl, model, loss, method='encoder', in_device=device)
-            scheduler.step(val_loss)
+        train_loop(tdl, model, loss, optimizer, method='encoder', in_device=device, board=tb, epoch=t)
+        val_loss=test_loop(vdl, model, loss, method='encoder', in_device=device, board=tb, epoch=t)
+        scheduler.step(val_loss)
 
         torch.save(deepcopy(model.state_dict()), os.path.join(PATH_SAVE,MODEL_NAME))
-        torch.save(deepcopy(swa_model.state_dict()), os.path.join(PATH_SAVE,"SWA_" + MODEL_NAME))
 
     print("Done!")
 
