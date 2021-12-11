@@ -18,8 +18,6 @@ def train_loop(dataloader, model, loss_fn, optimizer, method, in_device, board=N
             elif method == 'linmod':
                 pred = model(X).flatten()
             loss = loss_fn(pred, y)
-            if board:
-                board.add_scalar("train_loss", loss, epoch)
 
             if loss.item() > max_loss:
                 max_loss = loss.item()
@@ -34,6 +32,9 @@ def train_loop(dataloader, model, loss_fn, optimizer, method, in_device, board=N
 
             t.set_postfix(current_loss=loss.item(), refresh=False)
             t.update()
+
+        if board:
+            board.add_scalar("train_loss", loss, epoch)
 
         torch.cuda.empty_cache()
         print(f"\nEpoch Done, max loss:{max_loss:.3e}, min loss: {min_loss:.3e}, final loss: {loss.item():.3e}")
@@ -57,13 +58,13 @@ def test_loop(dataloader, model, loss_fn, method, in_device, board=None, epoch=0
             loss += loss_fn(pred, y).item()
 
 
+
     torch.cuda.empty_cache()
     loss /= num_batches
     loss = loss.cpu().numpy()[0]
     if board:
         board.add_scalar("val_loss", loss, epoch)
     avg_loss = loss * num_batches / size
-    if board:
-        board.add_scalar("val_loss_avg", avg_loss, epoch)
-    print(f"Test Error: \n Avg sum loss: {loss:.3e}, Avg indiv. loss: {avg_loss:.3e}\n")
+
+    print(f"Validation Error: {loss:.3e}\n")
     return loss
