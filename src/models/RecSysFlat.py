@@ -26,13 +26,13 @@ class RecSysGarbageNetV2(nn.Module):
         # biases
         self.beta_u = nn.Embedding(n_user, 1)
         self.beta_i = nn.Embedding(n_item, 1)
-        #self.alfa = nn.Parameter(torch.zeros([1,1]),requires_grad=True)
+        self.alfa = nn.Parameter(torch.zeros([1,1]),requires_grad=True)
 
     def forward(self,x):
         P_u = self.P(x[:,0]).squeeze()
         Q_i = self.Q(x[:,1]).squeeze()
         b_u = self.beta_u(x[:,0]).squeeze()
         b_i = self.beta_i(x[:,1]).squeeze()
-        #alfa = self.alfa
-        outputs = (P_u * Q_i).sum(axis=1) + b_u + b_i #+ alfa
+        alfa = self.alfa
+        outputs = (P_u * Q_i).sum(axis=1) + b_u + b_i + alfa
         return outputs.flatten()

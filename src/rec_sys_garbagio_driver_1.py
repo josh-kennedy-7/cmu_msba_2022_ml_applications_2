@@ -3,8 +3,9 @@ from torch.utils.data import DataLoader
 import torch
 from torch import nn
 import pandas as pd
-from tqdm import tqdm
 from core.loops import train_loop, test_loop
+from copy import deepcopy
+from data_mgmt import ValidationBaseDataClass
 
 """ A Note From Reed:
 
@@ -51,30 +52,37 @@ def overloadedTransform(in_row):
 
     return torch.cat((tt_users,tt_items),dim=0)
 
+def splitValidationByUser(ds_in):
+    df_validate = ds_in.df_data.copy().groupby('reviewerID').last().reset_index()
+    df_validate=df_validate.loc[ds_in.df_data.groupby('reviewerID').count().reset_index().reviewHash>1]
+    ds_in.df_data=ds_in.df_data.set_index('reviewHash').drop(df_validate.reviewHash).reset_index()
+
+    return ValidationBaseDataClass.ValidationDataClass(
+                            df_validate, transform=ds_in.transform,
+                            target_transform=ds_in.target_transform)
+
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     torch.cuda.empty_cache()
 
     ppath=r"C:\git\cmu_msba_2022_ml_applications_2\data"+"\\"
     ppath="//home/rster/sw/cmu_msba_2022_ml_applications_2/data/"
+    MODEL_SAVE_PATH="//home/rster/sw/cmu_msba_2022_ml_applications_2/src/models/saved/"
 
 
     omfg = rsd.RecSysData(ppath, preprocess=overloadedPreProcess, transform=overloadedTransform)
-    wtfbbq = omfg.splitValidation(preshuffle=True, fraction=0.05)
-    tdl = DataLoader(omfg, batch_size=8000, shuffle=False)
-    vdl = DataLoader(wtfbbq, batch_size=8000, shuffle=False)
+    wtfbbq = splitValidationByUser(omfg)
+    tdl = DataLoader(omfg, batch_size=4000, shuffle=False)
+    vdl = DataLoader(wtfbbq, batch_size=4000, shuffle=False)
 
     n_user = omfg.df_data.uid.append(wtfbbq.df_data.uid).unique().shape[0]
     n_item = omfg.df_data.pid.append(wtfbbq.df_data.pid).unique().shape[0]
 
     learning_rate = 3e-2
-    model = nn.Linear(n_user+n_item, 1).cuda()  #RecSysGarbageNet2(n_user,n_item)
+    model = nn.Linear(n_user+n_item, 1).cuda()
     loss = torch.nn.MSELoss(reduction='sum')
-    #optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate, momentum=0.9)
-    #scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=0.2, verbose=True)
 
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-3)
-    #optimizer = torch.optim.Adadelta(model.parameters(), lr=15.0, rho=0.9, eps=1e-06, weight_decay=1e-3)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                     mode='min', factor=0.666,
                     patience=3, threshold=0.0001, threshold_mode='abs',
@@ -87,6 +95,7 @@ def main():
         val_loss=test_loop(vdl, model, loss, device='linmod')
 
         scheduler.step(val_loss)
+        torch.save(deepcopy(model.state_dict()), MODEL_SAVE_PATH+"jimlinear.pkl")
 
     print("Done!")
 

@@ -57,5 +57,7 @@ def test_loop(dataloader, model, loss_fn, device):
 
     torch.cuda.empty_cache()
     loss /= num_batches
-    print(f"Test Error: \n Avg loss: {loss.cpu().numpy()[0]:.3e} \n")
-    return loss.cpu().numpy()
+    loss = loss.cpu().numpy()[0]
+    avg_loss = loss * num_batches / size
+    print(f"Test Error: \n Avg sum loss: {loss:.3e}, Avg indiv. loss: {avg_loss:.3e}\n")
+    return loss

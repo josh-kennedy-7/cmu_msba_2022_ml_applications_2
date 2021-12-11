@@ -1,15 +1,12 @@
-from torch.optim import optimizer
 import data_mgmt.RecSysData as rsd
 from models.RecSysFlat import RecSysGarbageNetV2
 from torch.utils.data import DataLoader
 import torch
-from torch import nn
-import pandas as pd
-from tqdm import tqdm
 from core.loops import train_loop, test_loop
 from copy import deepcopy
 
 from torch.optim.swa_utils import AveragedModel, SWALR
+from data_mgmt import ValidationBaseDataClass
 
 """ A Note From Reed:
 
@@ -41,6 +38,15 @@ if we set this higher we may get better results.
 Little too tired to think that through right now.
 
 """
+def splitValidationByUser(ds_in):
+    df_validate = ds_in.df_data.copy().groupby('reviewerID').last().reset_index()
+    df_validate=df_validate.loc[ds_in.df_data.groupby('reviewerID').count().reset_index().reviewHash>1]
+    ds_in.df_data=ds_in.df_data.set_index('reviewHash').drop(df_validate.reviewHash).reset_index()
+
+    return ValidationBaseDataClass.ValidationDataClass(
+                            df_validate, transform=ds_in.transform,
+                            target_transform=ds_in.target_transform)
+
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -49,27 +55,26 @@ def main():
     MODEL_SAVE_PATH="//home/rster/sw/cmu_msba_2022_ml_applications_2/src/models/saved/"
 
     omfg = rsd.RecSysData(ppath)
-    wtfbbq = omfg.splitValidation(preshuffle=True, fraction=0.05)
+    wtfbbq = splitValidationByUser(omfg)
     tdl = DataLoader(omfg, batch_size=50000, shuffle=False)
     vdl = DataLoader(wtfbbq, batch_size=50000, shuffle=False)
 
     n_user = omfg.df_data.uid.append(wtfbbq.df_data.uid).unique().shape[0]
     n_item = omfg.df_data.pid.append(wtfbbq.df_data.pid).unique().shape[0]
 
-    learning_rate = 1.0
-    model = RecSysGarbageNetV2(n_user,n_item,50)
+    model = RecSysGarbageNetV2(n_user,n_item,16)
     swa_model = AveragedModel(model)
 
     model = model.cuda()
     swa_model = swa_model.cuda()
 
     loss = torch.nn.MSELoss(reduction='sum')
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-3)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-1)
     #optimizer = torch.optim.Adadelta(model.parameters(), lr=15.0, rho=0.9, eps=1e-06, weight_decay=1e-3)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
                     mode='min', factor=0.666,
-                    patience=3, threshold=0.0001, threshold_mode='abs',
-                    cooldown=3, min_lr=1e-6, eps=1e-08, verbose=True)
+                    patience=5, threshold=0.02, threshold_mode='rel',
+                    cooldown=5, min_lr=1e-6, eps=1e-08, verbose=True)
     swa_scheduler = SWALR(optimizer, anneal_epochs=50, swa_lr=0.008)
 
     swa_start = 750
