@@ -4,6 +4,7 @@ import gzip
 import os
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
+import os
 
 from . import ValidationBaseDataClass
 
@@ -34,7 +35,7 @@ class BaseDataClass(Dataset):
             df_read_out = BaseDataClass._loadUpDf(
                 root_dir, data_file_name, ".json")
         elif category_results == "saved_files":
-            df_read_out = pd.read_csv(root_dir+data_file_name+".csv")
+            df_read_out = pd.read_csv(os.path.join(root_dir,data_file_name+".csv"))
             save_results = False
         else:
             raise Exception("BaseDataClass did not know where to find category results!")
@@ -168,7 +169,7 @@ class BaseDataClass(Dataset):
         Returns:
             Pandas Dataframe: dataframe with the data to be machine-learned
         """
-        local_path = pathname+filename+extensions
+        local_path = os.path.join(pathname,filename+extensions)
         compiledRatings = dict()
 
         if extensions == '.json.gz':
