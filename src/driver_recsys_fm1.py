@@ -58,10 +58,11 @@ def adam_driver(MODEL_NAME      = "default_model",
                 decay           = 1e-4,
                 epochs          = 50,
                 loss_fn_name    = 'adam',
-                tensorboard     = False):
+                ebdim           = 64,
+                tensorboard     = True):
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    #device = torch.device("cpu")
+    # device = torch.device("cpu")
     torch.cuda.empty_cache()
 
     PATH_DATA  = os.path.abspath('data/')
@@ -79,17 +80,17 @@ def adam_driver(MODEL_NAME      = "default_model",
     MODEL_NAME += ".pkl"
 
     ds_train = rsd.RecSysData(PATH_DATA)
-    ds_train.df_data = ds_train.df_data.iloc[0:10000]
+    # ds_train.df_data = ds_train.df_data.iloc[0:20000]
     ds_valid = splitValidationByUser(ds_train)
 
-    tdl = DataLoader(ds_train, batch_size=bsize, shuffle=False)
-    vdl = DataLoader(ds_valid, batch_size=bsize, shuffle=False)
+    tdl = DataLoader(ds_train, batch_size=bsize, shuffle=True)
+    vdl = DataLoader(ds_valid, batch_size=bsize, shuffle=True)
 
     n_user = ds_train.df_data.uid.append(ds_valid.df_data.uid).unique().shape[0]
     n_item = ds_train.df_data.pid.append(ds_valid.df_data.pid).unique().shape[0]
     model_dims = np.array([n_user,n_item])
 
-    model = FactorizationMachineModel(model_dims,64)
+    model = FactorizationMachineModel(model_dims, ebdim)
 
     if tensorboard:
         tb.add_graph(model, next(iter(tdl))[0])
@@ -107,20 +108,51 @@ def adam_driver(MODEL_NAME      = "default_model",
         optimizer = torch.optim.Adadelta(model.parameters(), lr=learning_rate, rho=0.9, eps=1e-06, weight_decay=decay)
 
 
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-                    mode='min', factor=0.666,
-                    patience=3, threshold=0.04, threshold_mode='rel',
-                    cooldown=0, min_lr=1e-6, eps=1e-08, verbose=True)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+    #                 mode='min', factor=0.666,
+    #                 patience=10, threshold=0.01, threshold_mode='rel',
+    #                 cooldown=10, min_lr=1e-6, eps=1e-08, verbose=True)
+
+    tri_step_size = round(epochs/3)
+    tri_step_size = 5
+
+    scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer,
+                    learning_rate, 10*learning_rate, step_size_up=tri_step_size,
+                    cycle_momentum=False, verbose=True)
 
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
         train_loop(tdl, model, loss, optimizer, method='encoder', in_device=device, board=tb, epoch=t)
         val_loss=test_loop(vdl, model, loss, method='encoder', in_device=device, board=tb, epoch=t)
-        scheduler.step(val_loss)
+        scheduler.step() #val_loss
+
+        if tensorboard:
+            tb.add_scalar("learning_rate", optimizer.param_groups[0]['lr'], t)
 
         torch.save(deepcopy(model.state_dict()), os.path.join(PATH_SAVE,MODEL_NAME))
 
     print("Done!")
 
+import time
+
+def main():
+    torch.cuda.empty_cache()
+    trials_and_tribulations = \
+      [["adam_256_005_3e3_500_800_FULL", 256, 0.005, 3e-3, 500, 'adam',800]]
+
+    for trial in trials_and_tribulations:
+        adam_driver(MODEL_NAME      = trial[0],
+                    bsize           = trial[1],
+                    learning_rate   = trial[2],
+                    decay           = trial[3],
+                    epochs          = trial[4],
+                    loss_fn_name    = trial[5],
+                    ebdim           = trial[6])
+
+        time.sleep(3)
+        torch.cuda.empty_cache()
+
+
+
 if __name__ == "__main__":
-    adam_driver()
+    main()
