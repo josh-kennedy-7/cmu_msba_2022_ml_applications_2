@@ -51,26 +51,24 @@ def splitValidationByUser(ds_in):
 
 def main():
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    torch.cuda.empty_cache()
 
-    PATH_DATA  = os.path.abspath('data/')
-    PATH_SAVE  = os.path.abspath('src/models/saved/')
-    MODEL_NAME = "garbagio2" + ".pkl"
+    ppath=r"C:\git\cmu_msba_2022_ml_applications_2\data"+"\\"
+    ppath="//home/rster/sw/cmu_msba_2022_ml_applications_2/data/"
+    MODEL_SAVE_PATH="//home/rster/sw/cmu_msba_2022_ml_applications_2/src/models/saved/"
 
-    ds_train = rsd.RecSysData(PATH_DATA)
-    ds_valid = splitValidationByUser(ds_train)
+    omfg = rsd.RecSysData(ppath)
+    wtfbbq = splitValidationByUser(omfg)
+    tdl = DataLoader(omfg, batch_size=50000, shuffle=False)
+    vdl = DataLoader(wtfbbq, batch_size=50000, shuffle=False)
 
-    tdl = DataLoader(ds_train, batch_size=50000, shuffle=False)
-    vdl = DataLoader(ds_valid, batch_size=50000, shuffle=False)
-
-    n_user = ds_train.df_data.uid.append(ds_valid.df_data.uid).unique().shape[0]
-    n_item = ds_train.df_data.pid.append(ds_valid.df_data.pid).unique().shape[0]
+    n_user = omfg.df_data.uid.append(wtfbbq.df_data.uid).unique().shape[0]
+    n_item = omfg.df_data.pid.append(wtfbbq.df_data.pid).unique().shape[0]
 
     model = RecSysGarbageNetV2(n_user,n_item,16)
     swa_model = AveragedModel(model)
 
-    model = model.to(device=device)
-    swa_model = swa_model.to(device=device)
+    model = model.cuda()
+    swa_model = swa_model.cuda()
 
     loss = torch.nn.MSELoss(reduction='sum')
     optimizer = torch.optim.Adam(model.parameters(), lr=0.05, weight_decay=1e-1)
@@ -85,19 +83,19 @@ def main():
     epochs = 1000
     for t in range(epochs):
         print(f"Epoch {t+1}\n-------------------------------")
-        train_loop(tdl, model, loss, optimizer, method='encoder', in_device=device)
+        train_loop(tdl, model, loss, optimizer, device='encoder')
 
 
         if t > swa_start:
-            val_loss=test_loop(vdl, swa_model, loss, method='encoder', in_device=device)
+            val_loss=test_loop(vdl, swa_model, loss, device='encoder')
             swa_model.update_parameters(model)
             swa_scheduler.step()
         else:
-            val_loss=test_loop(vdl, model, loss, method='encoder', in_device=device)
+            val_loss=test_loop(vdl, model, loss, device='encoder')
             scheduler.step(val_loss)
 
-        torch.save(deepcopy(model.state_dict()), os.path.join(PATH_SAVE,MODEL_NAME))
-        torch.save(deepcopy(swa_model.state_dict()), os.path.join(PATH_SAVE,"SWA_" + MODEL_NAME))
+        torch.save(deepcopy(model.state_dict()), MODEL_SAVE_PATH+"jimlad.pkl")
+        torch.save(deepcopy(swa_model.state_dict()), MODEL_SAVE_PATH+"jimswa.pkl")
 
     print("Done!")
 
