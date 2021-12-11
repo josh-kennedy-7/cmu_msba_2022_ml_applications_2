@@ -4,6 +4,7 @@ from torch.utils.data import DataLoader
 import torch
 from core.loops import train_loop, test_loop
 from copy import deepcopy
+import os
 
 from torch.optim.swa_utils import AveragedModel, SWALR
 from data_mgmt import ValidationBaseDataClass
@@ -38,6 +39,7 @@ if we set this higher we may get better results.
 Little too tired to think that through right now.
 
 """
+
 def splitValidationByUser(ds_in):
     df_validate = ds_in.df_data.copy().groupby('reviewerID').last().reset_index()
     df_validate=df_validate.loc[ds_in.df_data.groupby('reviewerID').count().reset_index().reviewHash>1]

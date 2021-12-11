@@ -1,10 +1,13 @@
-import data_mgmt.RecSysData as rsd
-from torch.utils.data import DataLoader
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
+
+import os
 import pandas as pd
-from core.loops import train_loop, test_loop
 from copy import deepcopy
+
+from data_mgmt import RecSysData as rsd
+from core.loops import train_loop, test_loop
 from data_mgmt import ValidationBaseDataClass
 
 """ A Note From Reed:
@@ -27,7 +30,6 @@ MSE starts bottoming out around 1.18, although I'm not so sure
 I've done the scheduling right.
 
 """
-
 
 def overloadedPreProcess(df_data):
     df_data['uid'], _ = pd.factorize(df_data['reviewerID'])
