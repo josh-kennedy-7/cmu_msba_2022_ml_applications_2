@@ -7,7 +7,7 @@ class TestRecSysData(ValidationBaseDataClass.ValidationDataClass):
     Args:
         df_input (dataframe): dataframe with which to create dataset
     """
-    def __init__(self, df_input, target_file=None,
+    def __init__(self, df_input, target_file=None, correlation_function=None,
                     transform=None, target_transform=None):
 
         # set class variables
@@ -15,7 +15,13 @@ class TestRecSysData(ValidationBaseDataClass.ValidationDataClass):
         self.target_transform = target_transform
 
         test_text = pd.read_csv(target_file,delimiter='-')
-        self.df_data = TestRecSysData._beatTheCrapOutOfThisData(df_input, test_text)
+
+        if not correlation_function:
+            self.correlation_function = TestRecSysData._beatTheCrapOutOfThisData
+        else:
+            self.correlation_function = correlation_function
+
+        self.df_data = self.correlation_function(df_input, test_text)
 
 
     def __getitem__(self, idx):

@@ -46,7 +46,7 @@ class FactorizationMachineModel(torch.nn.Module):
         :param x: Long tensor of size ``(batch_size, num_fields)``
         """
         x = self.linear(x) + self.fm(self.embedding(x))
-        # x = torch.clamp(x, min=0.9, max=5.1)
+        x = torch.clamp(x, min=0.8, max=5.2)
 
         # return torch.sigmoid(x.squeeze(1))
         return x.squeeze(1)
