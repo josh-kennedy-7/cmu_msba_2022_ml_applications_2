@@ -7,15 +7,11 @@ import numpy as np
 import pandas as pd
 from copy import deepcopy
 
-from data_mgmt import BaseDataClass as bsd
-from core.loops import train_loop, test_loop
+from data_mgmt import CatPredData as cpd
+from core.CatLoops import train_loop, test_loop
 from data_mgmt import ValidationBaseDataClass
 from models.FactorioMachine import FactorizationMachineModel
 
-import nltk
-from nltk.corpus import stopwords
-from nltk.stem import PorterStemmer
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 """ A Note From Reed:
 
@@ -37,7 +33,7 @@ def adam_driver(MODEL_NAME      = "default_model",
                 epochs          = 50,
                 loss_fn_name    = 'adam',
                 ebdim           = 64,
-                tensorboard     = True):
+                tensorboard     = False):
 
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # device = torch.device("cpu")
@@ -57,44 +53,16 @@ def adam_driver(MODEL_NAME      = "default_model",
         tb = SummaryWriter(os.path.join(PATH_SAVE,MODEL_NAME))
     MODEL_NAME += ".pkl"
 
-    ds_train = bsd.BaseDataClass(PATH_DATA)
-    
-    vect = TfidfVectorizer()
-    stop = stopwords.words('english')
-    stemmer = PorterStemmer()
-    
-    df = ds_train.df_data.copy()
-    
-    cols = ['summary','reviewText']
-    df['Review_N_summary'] = df[cols].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
-    
- #   df['Review_N_summary'] = df['Review_N_summary'].apply(lambda x: ' '.join([stemmer.stem(word) for word in x.split()]))
- #   df['Review_N_summary'] = df['Review_N_summary'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop)]))
-    vect = vect.fit(df['Review_N_summary'])
-    summary_xfmred = vect.transform(df['Review_N_summary'])
-    df['Review_N_summary'] = summary_xfmred.tolil().rows
-    dict_size = summary_xfmred.shape[1]
-    
-    ds_train.df_data = df.copy()
-    
-    # 90-10 split train-validate
-    train_size = int(0.9 * len(ds_train))
-    val_size = len(ds_train) - train_size
+    ds_train = cpd.CatPredData(PATH_DATA)
+    ds_valid = ds_train.splitValidation()
 
-    df_train, df_val = torch.data.utils.random_split(ds_train, [train_size, val_size])
-
-    print(len(df_train),len(df_val))
-
-
-    tdl = DataLoader(df_train, batch_size=bsize, shuffle=True)
-    vdl = DataLoader(df_val, batch_size=bsize, shuffle=True)
-
-
+    tdl = DataLoader(ds_train, batch_size=bsize, shuffle=True)
+    vdl = DataLoader(ds_valid, batch_size=bsize, shuffle=True)
 
 
     #n_user = ds_train.df_data.uid.append(ds_valid.df_data.uid).unique().shape[0]
     # n_item = ds_train.df_data.pid.append(ds_valid.df_data.pid).unique().shape[0]
-    model_dims = np.array([dict_size])
+    model_dims = np.array([ds_train.dict_size])
 
     model = FactorizationMachineModel(model_dims, ebdim)
 
