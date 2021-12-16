@@ -3,7 +3,7 @@ import pandas as pd
 import gzip
 import os
 from tqdm import tqdm
-from sklearn.model_selection import train_test_split
+#from sklearn.model_selection import train_test_split
 import os
 
 from . import ValidationBaseDataClass
