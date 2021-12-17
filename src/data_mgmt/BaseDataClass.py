@@ -42,7 +42,7 @@ class BaseDataClass(Dataset):
             raise Exception("BaseDataClass did not know where to find category results!")
 
         if save_results:
-            df_read_out.to_csv(root_dir+data_file_name+".csv")
+            df_read_out.to_csv(os.path.join(root_dir,data_file_name+".csv"))
 
         # set class variables
         self.df_data = df_read_out
@@ -245,12 +245,12 @@ class BaseDataClass(Dataset):
         df = df.reset_index()
         df = df.rename(columns={'index':'reviewHash'})
         
-        count_by_itemid = df.groupby('itemID').count().reviewHash.sort_values(ascending=False)
+        count_by_itemid = df.groupby('itemID').count().reviewHash.iloc[:,0]
 
         deciles = np.quantile(count_by_itemid,[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
 
         is_decile = pd.DataFrame()
-        is_decile['0'] = count_by_itemid < deciles[0]
+        is_decile['0'] = (count_by_itemid < deciles[0])
         is_decile['1'] = (count_by_itemid >= deciles[0]) & (count_by_itemid < deciles[1])
         is_decile['2'] = (count_by_itemid >= deciles[1]) & (count_by_itemid < deciles[2])
         is_decile['3'] = (count_by_itemid >= deciles[2]) & (count_by_itemid < deciles[3])
