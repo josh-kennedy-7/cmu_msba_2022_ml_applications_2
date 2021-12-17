@@ -5,6 +5,7 @@ import os
 from tqdm import tqdm
 from sklearn.model_selection import train_test_split
 import os
+import numpy as np
 
 from . import ValidationBaseDataClass
 
@@ -243,5 +244,25 @@ class BaseDataClass(Dataset):
 
         df = df.reset_index()
         df = df.rename(columns={'index':'reviewHash'})
+        
+        count_by_itemid = df.groupby('itemID').count().reviewHash.sort_values(ascending=False)
+
+        deciles = np.quantile(count_by_itemid,[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+
+        is_decile = pd.DataFrame()
+        is_decile['0'] = count_by_itemid < deciles[0]
+        is_decile['1'] = (count_by_itemid >= deciles[0]) & (count_by_itemid < deciles[1])
+        is_decile['2'] = (count_by_itemid >= deciles[1]) & (count_by_itemid < deciles[2])
+        is_decile['3'] = (count_by_itemid >= deciles[2]) & (count_by_itemid < deciles[3])
+        is_decile['4'] = (count_by_itemid >= deciles[3]) & (count_by_itemid < deciles[4])
+        is_decile['5'] = (count_by_itemid >= deciles[4]) & (count_by_itemid < deciles[5])
+        is_decile['6'] = (count_by_itemid >= deciles[5]) & (count_by_itemid < deciles[6])
+        is_decile['7'] = (count_by_itemid >= deciles[6]) & (count_by_itemid < deciles[7])
+        is_decile['8'] = (count_by_itemid >= deciles[7]) & (count_by_itemid < deciles[8])
+        is_decile['9'] = count_by_itemid >= deciles[8]
+        num_decile = is_decile.copy().idxmax(axis=1)
+        num_decile.name = 'qid'
+
+        df = df.set_index('itemID').join(num_decile).reset_index()
 
         return df
