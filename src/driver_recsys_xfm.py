@@ -100,7 +100,7 @@ def adam_driver(MODEL_NAME      = "default_model",
     n_item = ds_train.df_data.copy().pid.unique().shape[0]
     n_cats = ds_train.df_data.copy().cid.unique().shape[0]
 
-    #ds_train.df_data = ds_train.df_data.iloc[0:10000]
+    #ds_train.df_data = ds_train.df_data.iloc[np.random.randint(0,high=80000,size=10000)]
     ds_valid = splitValidationByUser(ds_train)
 
     tdl = DataLoader(ds_train, batch_size=bsize, shuffle=True)
@@ -111,7 +111,7 @@ def adam_driver(MODEL_NAME      = "default_model",
     model = XFM(field_dims = model_dims,
                 embed_dim = mp_embeddim,
                 mlp_dims  = mp_mlpdims,
-                dropout = 0.0,
+                dropout = 0.33,
                 cross_layer_sizes = mp_cinsz,
                 split_half=False)
 
@@ -137,7 +137,7 @@ def adam_driver(MODEL_NAME      = "default_model",
     #                 cooldown=10, min_lr=1e-6, eps=1e-08, verbose=True)
 
     tri_step_size = round(epochs/3)
-    tri_step_size = 10
+    tri_step_size = 15
 
     scheduler = torch.optim.lr_scheduler.CyclicLR(optimizer,
                     learning_rate, 20*learning_rate, step_size_up=tri_step_size,
@@ -149,7 +149,7 @@ def adam_driver(MODEL_NAME      = "default_model",
         train_loop(tdl, model, loss, optimizer, method='encoder', in_device=device, board=tb, epoch=t)
         val_loss=test_loop(vdl, model, loss, method='encoder', in_device=device, board=tb, epoch=t)
 
-        if issubclass(scheduler, torch.optim.lr_scheduler.ReduceLROnPlateau):
+        if issubclass(scheduler.__class__, torch.optim.lr_scheduler.ReduceLROnPlateau):
             scheduler.step(val_loss)
         else:
             scheduler.step()
@@ -166,7 +166,7 @@ import time
 def main():
     torch.cuda.empty_cache()
     trials_and_tribulations = \
-      [ ["depth_502", 512, 0.0001, 1e-21, 50, 'adamw', (512+128, 8*(8,8),3*(24,24,24,24))]]
+      [ ["depth_516_FULL", 64, 0.0005, 1e-16, 500, 'adamw', (512, 10*(8,8),2*(50,50))] ]
 
 # ["depth_501", 512, 0.0005, 1e-15, 25, 'adamw', (512, 8*(8,8),1*(96,96,96))]
 

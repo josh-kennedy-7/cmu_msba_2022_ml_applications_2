@@ -1,7 +1,9 @@
 from . import BaseDataClass
-from transformers import BertTokenizerFast
-import pandas as pd
+from nltk.corpus import stopwords
+from nltk.stem import PorterStemmer
+from sklearn.feature_extraction.text import TfidfVectorizer
 import torch
+import numpy as np
 
 # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # # #
 # TODO -- REED -- ! ! ! ! ! HEY WE HAVEN'T EVEN STARTED THIS ONE YET! ! ! ! ! !
@@ -28,7 +30,7 @@ class CatPredData(BaseDataClass.BaseDataClass):
         else:
             self.preprocess = self.catPredPreprocessing
 
-        self.df_data, self.tf_tokenids = self.preprocess(self.df_data)
+        self.df_data, self.dict_size = self.preprocess(self.df_data)
 
         if transform:
             self.transform = transform
@@ -42,31 +44,39 @@ class CatPredData(BaseDataClass.BaseDataClass):
 
     @staticmethod
     def catPredPreprocessing(df_in):
-        # TODO -- REED -- enable full data set
-        # for now only look at 20,000 examples to prevent
-        # computer melting issues.
-        df_in=df_in.iloc[0:20000]
-
         # eliminate blank row
         # TODO -- REED -- this should probably be in the base class
         df_in=df_in.query("reviewHash!='R0'")
+        df_in=df_in.iloc[0:10000]
 
-        tokenizer = BertTokenizerFast.from_pretrained('bert-base-cased')
-        tokenized = tokenizer(df_in.reviewText.tolist(), \
-            padding=True, truncation=True, return_tensors="pt")
+        vect = TfidfVectorizer()
+        stop = stopwords.words('english')
+        stemmer = PorterStemmer()
 
-        return (df_in, tokenized['input_ids'])
+        df = df_in.copy()
+
+        cols = ['summary','reviewText']
+        df['Review_N_summary'] = df[cols].apply(lambda row: ' '.join(row.values.astype(str)), axis=1)
+
+        df['Review_N_summary'] = df['Review_N_summary'].apply(lambda x: ' '.join([stemmer.stem(word) for word in x.split()]))
+        df['Review_N_summary'] = df['Review_N_summary'].apply(lambda x: ' '.join([word for word in x.split() if word not in (stop)]))
+
+        vect = vect.fit(df['Review_N_summary'])
+        summary_xfmred = vect.transform(df['Review_N_summary'])
+        df['Review_N_summary'] = summary_xfmred.tolil().rows
+        max_token_len = df.Review_N_summary.apply(lambda x: len(x)).max()
+
+        df['Review_N_summary'] = df['Review_N_summary'].apply(lambda x: np.array(x))
+
+        dict_size = summary_xfmred.shape[1]
+
+        return (df, dict_size)
 
     @staticmethod
-    # TODO -- REED -- AUUUGH IT'S A STATIC METHOD THAT THINKS IT'S
-    # GOING TO GET A DATAFRAME ROW IN THE BASE CLASS I'VE CODED
-    # MYSELF INTO A LITTLE BOX
-    # ok deep inhale, I'll fix this one later...
-    # Anyways -> This one doesn't work for now
-    # Check out catsys_testing.py
     def catPredXfrm(in_row):
-        return self.tf_tokenids[:,in_row]
+        pad_size = 2000 - in_row.Review_N_summary.shape[0]
+        return torch.nn.functional.pad(torch.tensor(in_row.Review_N_summary),(0,pad_size))
 
     @staticmethod
-    def catPredTgtXfrm():
-        return None
+    def catPredTgtXfrm(in_row):
+        return torch.tensor([in_row.categoryID], dtype=int)
