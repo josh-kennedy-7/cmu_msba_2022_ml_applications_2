@@ -1,6 +1,1 @@
-Use this link to access github through Colab:
-https://colab.research.google.com/github
-
-
-I am adding to the readme file
-I am adding for the THIRD TIME because Reed won't approve
+The goal of this analysis was to build three different recommender systems based on reviews of clothing, shoes, and jewelry item purchases from Amazon. The assigned tasks were to design three models to predict item category, review rating, and if the user purchased the item.
