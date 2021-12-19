@@ -1,0 +1,17 @@
+references:
+
+https://www.fast.ai/2018/07/02/adam-weight-decay/
+
+https://www.csie.ntu.edu.tw/~b97053/paper/Rendle2010FM.pdf
+
+https://arxiv.org/pdf/1611.00144.pdf
+
+https://arxiv.org/pdf/1703.04247.pdf/
+
+https://arxiv.org/pdf/1803.05170.pdf
+
+https://medium.com/mini-distill/effect-of-batch-size-on-training-dynamics-21c14f7a716e
+
+https://getstream.io/blog/factorization-recommendation-systems/
+
+https://arxiv.org/abs/1711.05101

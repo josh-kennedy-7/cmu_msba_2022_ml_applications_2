@@ -3,6 +3,11 @@ import pandas as pd
 import gzip
 import os
 from tqdm import tqdm
+from sklearn.model_selection import train_test_split
+import os
+import numpy as np
+
+from . import ValidationBaseDataClass
 
 
 class BaseDataClass(Dataset):
@@ -12,7 +17,7 @@ class BaseDataClass(Dataset):
         csv_file (location): path to the data
     """
 
-    def __init__(self, root_dir, data_file_name="train", transform=None, target_transform=None):
+    def __init__(self, root_dir, data_file_name="train", transform=None, target_transform=None, df_input=None):
         """The __init__ function is run once when instantiating the Dataset object.
 
         """
@@ -31,14 +36,14 @@ class BaseDataClass(Dataset):
             df_read_out = BaseDataClass._loadUpDf(
                 root_dir, data_file_name, ".json")
         elif category_results == "saved_files":
-            df_read_out = pd.read_csv(root_dir+data_file_name+".csv")
+            df_read_out = pd.read_csv(os.path.join(root_dir,data_file_name+".csv"))
             save_results = False
         else:
             raise Exception("BaseDataClass did not know where to find category results!")
 
         if save_results:
-            df_read_out.to_csv(root_dir+data_file_name+".csv")
-            
+            df_read_out.to_csv(os.path.join(root_dir,data_file_name+".csv"))
+
         # set class variables
         self.df_data = df_read_out
         self.transform = transform
@@ -57,39 +62,49 @@ class BaseDataClass(Dataset):
         Note that if you're reading this you are in the Base Class of our
         dataset class which means the return of __getitem__() will not be
         a (feature,label) pair, it's just going to be the row.
-        
+
         If you want to feed this into a dataloader to start working with it
         then you're going to need to have:
             -> A transform() function
             -> A transform_target() function
-            
+
         ...which hopefully by the time you're reading this Reed will have
         authored for most of the challenges...
-        
+
         And instead of using this base class you're going to want to use
         the overloaded class specific to the challenge you're trying
         to address!!!
 
         Args:
             idx -- the index you want the thingy of
-            
+
         Returns:
             tuple -- index 0 is features, index 1 is targets/labels/whateva
         """
         reqested_row = self.df_data.iloc[idx].copy()
-        
+
         if self.transform:
             features = self.transform(reqested_row)
         else:
             features = reqested_row
-            
+
         if self.target_transform:
-            label = self.target_transform(reqested_row)      
+            label = self.target_transform(reqested_row)
         else:
             label = None
-        
+
         return (features, label)
-    
+
+    def splitValidation(self, fraction=0.1, preshuffle=False):
+        df_train,df_validate=train_test_split(self.df_data,
+                                                test_size=fraction,
+                                                shuffle=preshuffle)
+        self.df_data=df_train
+
+        return ValidationBaseDataClass.ValidationDataClass(
+                                df_validate, transform=self.transform,
+                                target_transform=self.target_transform)
+
 
     @staticmethod
     def _assessDirectory(root_dir, f_name):
@@ -103,7 +118,7 @@ class BaseDataClass(Dataset):
             str: string describing the available data to access
         """
         result = None
-        
+
         found_json      =   False
         found_json_gz   =   False
         with os.scandir(root_dir) as diriter:
@@ -113,21 +128,22 @@ class BaseDataClass(Dataset):
                     break
                 elif f_name + ".json" == this_file.name:
                     found_json = True
-                    continue                
+                    continue
                 elif f_name + ".json.gz" == this_file.name:
                     found_json_gz = True
                     continue
-                
-        if found_json:
-            result = "json_only"
-        elif found_json_gz:
-            result = "json_gz_only"
-            
+
+        if not result == "saved_files":
+            if found_json:
+                result = "json_only"
+            elif found_json_gz:
+                result = "json_gz_only"
+
         if not result:
             raise Exception("No recognizable file type found within data directory.")
-            
+
         return result
-            
+
 
     @staticmethod
     def _readGz(f):
@@ -154,7 +170,7 @@ class BaseDataClass(Dataset):
         Returns:
             Pandas Dataframe: dataframe with the data to be machine-learned
         """
-        local_path = pathname+filename+extensions
+        local_path = os.path.join(pathname,filename+extensions)
         compiledRatings = dict()
 
         if extensions == '.json.gz':
@@ -225,8 +241,28 @@ class BaseDataClass(Dataset):
             lambda x: x[1][0] if len(x) > 1 else '')
         df['cat2_child'] = df['categories'].apply(
             lambda x: x[1][-1] if len(x) > 1 else '')
-        
+
         df = df.reset_index()
         df = df.rename(columns={'index':'reviewHash'})
+        
+        count_by_itemid = df.groupby('itemID').count().reviewHash.iloc[:,0]
+
+        deciles = np.quantile(count_by_itemid,[0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9])
+
+        is_decile = pd.DataFrame()
+        is_decile['0'] = (count_by_itemid < deciles[0])
+        is_decile['1'] = (count_by_itemid >= deciles[0]) & (count_by_itemid < deciles[1])
+        is_decile['2'] = (count_by_itemid >= deciles[1]) & (count_by_itemid < deciles[2])
+        is_decile['3'] = (count_by_itemid >= deciles[2]) & (count_by_itemid < deciles[3])
+        is_decile['4'] = (count_by_itemid >= deciles[3]) & (count_by_itemid < deciles[4])
+        is_decile['5'] = (count_by_itemid >= deciles[4]) & (count_by_itemid < deciles[5])
+        is_decile['6'] = (count_by_itemid >= deciles[5]) & (count_by_itemid < deciles[6])
+        is_decile['7'] = (count_by_itemid >= deciles[6]) & (count_by_itemid < deciles[7])
+        is_decile['8'] = (count_by_itemid >= deciles[7]) & (count_by_itemid < deciles[8])
+        is_decile['9'] = count_by_itemid >= deciles[8]
+        num_decile = is_decile.copy().idxmax(axis=1)
+        num_decile.name = 'qid'
+
+        df = df.set_index('itemID').join(num_decile).reset_index()
 
         return df

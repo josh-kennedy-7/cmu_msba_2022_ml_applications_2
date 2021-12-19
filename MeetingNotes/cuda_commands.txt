@@ -1,0 +1,5 @@
+nvidia-smi
+
+sudo fuser -v /dev/nvidia*
+
+lspci | grep VGA

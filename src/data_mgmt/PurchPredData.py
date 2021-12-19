@@ -38,8 +38,18 @@ class PurchPredData(BaseDataClass.BaseDataClass):
         else:
             self.target_transform = self.purchPredTgtXfrm
 
-    def purchPredPreprocessing(self):
-        pass
+    @ staticmethod
+    def purchPredPreprocessing(df_data):
+        df_data['uid'], _ = pd.factorize(df_data['reviewerID'])
+        df_data['pid'], _ = pd.factorize(df_data['itemID'])
+
+        df_data = df_data[['reviewHash', 
+                            'reviewerID',
+                            'itemID',
+                            'uid','pid','categoryID','qid']]
+
+        return df_data
+
 
     def purchPredXfrm(self):
         return None
